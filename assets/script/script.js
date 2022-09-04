@@ -11,14 +11,19 @@ const playBtn = $('.btn-toggle-play');
 const progress = $('#progress');
 const prevBtn = $('.btn-prev');
 const nextBtn = $('.btn-next');
+const randomBtn = $('.btn-random');
+const repeatBtn = $('.btn-repeat');
+const playList = $('.playlist');
 
 const app = {
     currentIndex: 0,
     isPlaying: false,
+    isRepeat: false,
+    isRandom: false,
     render: function() {
-        const htmls = listSong.map(song => {
+        const htmls = listSong.map((song, index) => {
             return `
-                <div class="song">
+                <div class="song ${(index === this.currentIndex ? 'active' : '')}" data-index="${index}">
                     <div class="thumb" style="background-image: url('${song.image}')"></div>
                     <div class="body">
                         <h3 class="title">${song.name}</h3>
@@ -30,7 +35,7 @@ const app = {
                 </div>
             `
         });
-        $('.playlist').innerHTML = htmls.join('');
+        playList.innerHTML = htmls.join('');
     },
     defineProperties: function() {
         Object.defineProperty(this, 'currentSong', {
@@ -64,11 +69,7 @@ const app = {
 
         // Handle when click
         playBtn.onclick = function() {
-            if (_this.isPlaying) {
-                audio.pause();
-            } else {
-                audio.play();
-            }
+            _this.isPlaying ? audio.pause() : audio.play();
         }
 
         // The song is playing
@@ -99,20 +100,72 @@ const app = {
             audio.currentTime = seekTime;
         }
 
+        // Handle when the song ended 
+        audio.onended = function() {
+            _this.isRepeat ? audio.play() : nextBtn.click();
+        }
+
+        // Handle turn on / turn off repeat the song
+        repeatBtn.onclick = function() {
+            _this.isRepeat = !_this.isRepeat;
+            repeatBtn.classList.toggle('active', _this.isRepeat);
+        }
+
         // When previous the song
         prevBtn.onclick = function() {
-            _this.prevSong();
+            _this.isRandom ? _this.randomSong() : _this.prevSong();
+            audio.play();
+            _this.render();
+            _this.scrollToActiveSong();
         }
 
         // When next the song
         nextBtn.onclick = function() {
-            _this.nextSong();
+            _this.isRandom ? _this.randomSong() : _this.nextSong();
+            audio.play();
+            _this.render();
+            _this.scrollToActiveSong();
+        }
+
+        // Handle turn on / turn off random the song
+        randomBtn.onclick = function() {
+            _this.isRandom = !_this.isRandom;
+            randomBtn.classList.toggle('active', _this.isRandom);
+        }
+
+        // Handle when click playlist
+        playList.onclick = function(event) {
+            const songNode = event.target.closest('.song:not(.active)');
+            const optionNode = event.target.closest('.option');
+            if (songNode || optionNode) {
+
+                // Handle when click song
+                if (songNode) {
+                    _this.currentIndex = Number(songNode.dataset.index);
+                    _this.loadCurrentSong();
+                    _this.render();
+                    audio.play();
+                }
+
+                // Handle when click option
+                if (optionNode) {
+                    alert('Nếu tôi nhìn xa hơn những người khác, thì đó là vì tôi đứng trên vai những người khổng lồ ❤❤❤')
+                }
+            }
         }
     },
     loadCurrentSong: function() {
         heading.textContent = this.currentSong.name;
         cdThumb.style.backgroundImage = `url(${this.currentSong.image})`;
         audio.src = this.currentSong.path;
+    },
+    scrollToActiveSong() {
+        setTimeout(() => {
+            $('.song.active').scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+            })
+        }, 300);
     },
     prevSong: function() {
         this.currentIndex--;
@@ -126,6 +179,14 @@ const app = {
         if (this.currentIndex == listSong.length) {
             this.currentIndex = 0;
         }
+        this.loadCurrentSong();
+    },
+    randomSong: function() {
+        let newIndex;
+        do {
+            newIndex = Math.floor(Math.random() * listSong.length);
+        } while (newIndex === this.currentIndex);
+        this.currentIndex = newIndex;
         this.loadCurrentSong();
     },
     start: function() {
@@ -144,4 +205,3 @@ const app = {
 }
 
 app.start();
-
